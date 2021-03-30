@@ -8,8 +8,8 @@ public class Minimax {
 	// Board instance is responsible for board mechanics
 	private Board board;
 	// Win score should be greater than all possible board scores
-	private static final int winScore = 100000000;
-	
+	private static final int WIN_SCORE = 100_000_000;
+
 	// Constructor
 	public Minimax(Board board) {
 		this.board = board;
@@ -17,7 +17,7 @@ public class Minimax {
 	
 	// Getter function for the winScore 
 	public static int getWinScore() {
-		return winScore;
+		return WIN_SCORE;
 	}
 
 	// This function calculates the relative score of the white player against the black.
@@ -167,7 +167,7 @@ public class Minimax {
 		}
 		else {
 			// Initialize the starting best move using the first move in the list and +infinity score.
-			bestMove[0] = 100000000.0;
+			bestMove[0] = 100_000_000.0;
 			bestMove[1] = allPossibleMoves.get(0)[0];
 			bestMove[2] = allPossibleMoves.get(0)[1];
 			
@@ -232,7 +232,7 @@ public class Minimax {
 			dummyBoard.addStoneNoGUI(move[1], move[0], false);
 			
 			// If the white player has a winning score in that temporary board, return the move.
-			if(getScore(dummyBoard,false,false) >= winScore) {
+			if(getScore(dummyBoard,false,false) >= WIN_SCORE) {
 				winningMove[1] = move[0];
 				winningMove[2] = move[1];
 				return winningMove;
@@ -364,7 +364,7 @@ public class Minimax {
 		switch(count) {
 		case 5: {
 			// 5 consecutive wins the game
-			return winScore;
+			return WIN_SCORE;
 		}
 		case 4: {
 			// 4 consecutive stones in the user's turn guarantees a win.
@@ -388,7 +388,7 @@ public class Minimax {
 				// (User places another stone to make the set 4 consecutive, opponent can only block one side)
 				// However the opponent may win the game in the next turn therefore this score is lower than win
 				// guaranteed scores but still a very high score.
-				if(currentTurn) return 50000;
+				if(currentTurn) return 50_000;
 				// If it's the opponent's turn, this set forces opponent to block one of the sides of the set.
 				// So a relatively high score is given for this set.
 				else return 200;
@@ -417,6 +417,6 @@ public class Minimax {
 		}
 
 		// More than 5 consecutive stones? 
-		return winScore*2;
+		return WIN_SCORE*2;
 	}
 }
