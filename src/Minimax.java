@@ -71,7 +71,7 @@ public class Minimax {
 			
 		} else {
 			// If there is no such move, search the minimax tree with specified depth.
-			bestMove = minimaxSearchAB(depth, board, true, -1.0, getWinScore());
+			bestMove = minimaxSearchAB(depth, new Board(board), true, -1.0, getWinScore());
 			if(bestMove[1] == null) {
 				move = null;
 			} else {
@@ -93,11 +93,11 @@ public class Minimax {
 	 * beta : Best Player Move (Min)
 	 * returns: {score, move[0], move[1]}
 	 * */
-	private static Object[] minimaxSearchAB(int depth, Board board, boolean max, double alpha, double beta) {
+	private static Object[] minimaxSearchAB(int depth, Board dummyBoard, boolean max, double alpha, double beta) {
 
 		// Last depth (terminal node), evaluate the current board score.
 		if(depth == 0) {
-			Object[] x = {evaluateBoardForWhite(board, !max), null, null};
+			Object[] x = {evaluateBoardForWhite(dummyBoard, !max), null, null};
 			return x;
 		}
 		
@@ -109,11 +109,11 @@ public class Minimax {
 		 *				   \   ...
 		 *                  (Move N)
 		 */
-		ArrayList<int[]> allPossibleMoves = board.generateMoves();
+		ArrayList<int[]> allPossibleMoves = dummyBoard.generateMoves();
 		
 		// If there is no possible move left, treat this node as a terminal node and return the score.
 		if(allPossibleMoves.size() == 0) {
-			Object[] x = {evaluateBoardForWhite(board, !max), null, null};
+			Object[] x = {evaluateBoardForWhite(dummyBoard, !max), null, null};
 			return x;
 		}
 		
@@ -125,8 +125,6 @@ public class Minimax {
 			bestMove[0] = -1.0;
 			// Iterate for all possible moves that can be made.
 			for(int[] move : allPossibleMoves) {
-				// Create a temporary board that is equivalent to the current board
-				Board dummyBoard = new Board(board);
 
 				// Play the move on that temporary board without drawing anything
 				dummyBoard.addStoneNoGUI(move[1], move[0], false);
@@ -136,8 +134,11 @@ public class Minimax {
 				// (if the depth > 0) and searches for the minimum white score in each of the sub trees.
 				// We will find the maximum score of this depth, among the minimum scores found in the
 				// lower depth.
-				Object[] tempMove = minimaxSearchAB(depth-1, dummyBoard, !max, alpha, beta);
-				
+				Object[] tempMove = minimaxSearchAB(depth-1, dummyBoard, false, alpha, beta);
+
+				// backtrack and remove
+				dummyBoard.removeStoneNoGUI(move[1],move[0]);
+
 				// Updating alpha (alpha value holds the maximum score)
 				// When searching for the minimum, if the score of a node is lower than the alpha 
 				// (max score of uncle nodes from one upper level) the whole subtree originating
@@ -173,7 +174,6 @@ public class Minimax {
 			// Iterate for all possible moves that can be made.
 			for(int[] move : allPossibleMoves) {
 				// Create a temporary board that is equivalent to the current board
-				Board dummyBoard = new Board(board);
 
 				// Play the move on that temporary board without drawing anything
 				dummyBoard.addStoneNoGUI(move[1], move[0], true);
@@ -183,7 +183,9 @@ public class Minimax {
 				// (if the depth > 0) and searches for the maximum white score in each of the sub trees.
 				// We will find the minimum score of this depth, among the maximum scores found in the
 				// lower depth.
-				Object[] tempMove = minimaxSearchAB(depth-1, dummyBoard, !max, alpha, beta);
+				Object[] tempMove = minimaxSearchAB(depth-1, dummyBoard, true, alpha, beta);
+
+				dummyBoard.removeStoneNoGUI(move[1],move[0]);
 				
 				// Updating beta (beta value holds the minimum score)
 				// When searching for the maximum, if the score of a node is higher than the beta 
@@ -241,8 +243,8 @@ public class Minimax {
 
 	// This function calculates the score by evaluating the stone positions in horizontal direction
 	public static int evaluateHorizontal(int[][] boardMatrix, boolean forBlack, boolean playersTurn ) {
-		
-		int consecutive = 0;
+
+		int[] evaluations = {0, 2, 0}; // [0] -> consecutive count, [1] -> block count, [2] -> score
 		// blocks variable is used to check if a consecutive stone set is blocked by the opponent or
 		// the board border. If the both sides of a consecutive set is blocked, blocks variable will be 2
 		// If only a single side is blocked, blocks variable will be 1, and if both sides of the consecutive
@@ -251,192 +253,104 @@ public class Minimax {
 		// If the first cell is empty, block count will be decremented by 1.
 		// If there is another empty cell after a consecutive stones set, block count will again be 
 		// decremented by 1.
-		int blocks = 2;
-		int score = 0;
-		
 		// Iterate over all rows
 		for(int i=0; i<boardMatrix.length; i++) {
 			// Iterate over all cells in a row
 			for(int j=0; j<boardMatrix[0].length; j++) {
 				// Check if the selected player has a stone in the current cell
-				if(boardMatrix[i][j] == (forBlack ? 2 : 1)) {
-					// Increment consecutive stones count
-					consecutive++;
-				}
-				// Check if cell is empty
-				else if(boardMatrix[i][j] == 0) {
-					// Check if there were any consecutive stones before this empty cell
-					if(consecutive > 0) {
-						// Consecutive set is not blocked by opponent, decrement block count
-						blocks--;
-						// Get consecutive set score
-						score += getConsecutiveSetScore(consecutive, blocks, forBlack == playersTurn);
-						// Reset consecutive stone count
-						consecutive = 0;
-						// Current cell is empty, next consecutive set will have at most 1 blocked side.
-						blocks = 1;
-					}
-					else {
-						// No consecutive stones.
-						// Current cell is empty, next consecutive set will have at most 1 blocked side.
-						blocks = 1;
-					}
-				}
-				// Cell is occupied by opponent
-				// Check if there were any consecutive stones before this empty cell
-				else if(consecutive > 0) {
-					// Get consecutive set score
-					score += getConsecutiveSetScore(consecutive, blocks, forBlack == playersTurn);
-					// Reset consecutive stone count
-					consecutive = 0;
-					// Current cell is occupied by opponent, next consecutive set may have 2 blocked sides
-					blocks = 2;
-				}
-				else {
-					// Current cell is occupied by opponent, next consecutive set may have 2 blocked sides
-					blocks = 2;
-				}
+				evaluateDirections(boardMatrix,i,j,forBlack,playersTurn,evaluations);
 			}
-			// End of row, check if there were any consecutive stones before we reached right border
-			if(consecutive > 0) {
-				score += getConsecutiveSetScore(consecutive, blocks, forBlack == playersTurn);
-			}
-			// Reset consecutive stone and blocks count
-			consecutive = 0;
-			blocks = 2;
+			evaluateDirectionsAfterOnePass(evaluations, forBlack, playersTurn);
 		}
 
-		return score;
+		return evaluations[2];
 	}
 	
 	// This function calculates the score by evaluating the stone positions in vertical direction
 	// The procedure is the exact same of the horizontal one.
 	public static  int evaluateVertical(int[][] boardMatrix, boolean forBlack, boolean playersTurn ) {
-		
-		int consecutive = 0;
-		int blocks = 2;
-		int score = 0;
+
+		int[] evaluations = {0, 2, 0}; // [0] -> consecutive count, [1] -> block count, [2] -> score
 		
 		for(int j=0; j<boardMatrix[0].length; j++) {
 			for(int i=0; i<boardMatrix.length; i++) {
-				if(boardMatrix[i][j] == (forBlack ? 2 : 1)) {
-					consecutive++;
-				}
-				else if(boardMatrix[i][j] == 0) {
-					if(consecutive > 0) {
-						blocks--;
-						score += getConsecutiveSetScore(consecutive, blocks, forBlack == playersTurn);
-						consecutive = 0;
-						blocks = 1;
-					}
-					else {
-						blocks = 1;
-					}
-				}
-				else if(consecutive > 0) {
-					score += getConsecutiveSetScore(consecutive, blocks, forBlack == playersTurn);
-					consecutive = 0;
-					blocks = 2;
-				}
-				else {
-					blocks = 2;
-				}
+				evaluateDirections(boardMatrix,i,j,forBlack,playersTurn,evaluations);
 			}
-			if(consecutive > 0) {
-				score += getConsecutiveSetScore(consecutive, blocks, forBlack == playersTurn);
-				
-			}
-			consecutive = 0;
-			blocks = 2;
+			evaluateDirectionsAfterOnePass(evaluations,forBlack,playersTurn);
 			
 		}
-		return score;
+		return evaluations[2];
 	}
 
 	// This function calculates the score by evaluating the stone positions in diagonal directions
 	// The procedure is the exact same of the horizontal calculation.
 	public static  int evaluateDiagonal(int[][] boardMatrix, boolean forBlack, boolean playersTurn ) {
-		
-		int consecutive = 0;
-		int blocks = 2;
-		int score = 0;
+
+		int[] evaluations = {0, 2, 0}; // [0] -> consecutive count, [1] -> block count, [2] -> score
 		// From bottom-left to top-right diagonally
 		for (int k = 0; k <= 2 * (boardMatrix.length - 1); k++) {
 		    int iStart = Math.max(0, k - boardMatrix.length + 1);
 		    int iEnd = Math.min(boardMatrix.length - 1, k);
 		    for (int i = iStart; i <= iEnd; ++i) {
-		        int j = k - i;
-		        
-		        if(boardMatrix[i][j] == (forBlack ? 2 : 1)) {
-					consecutive++;
-				}
-				else if(boardMatrix[i][j] == 0) {
-					if(consecutive > 0) {
-						blocks--;
-						score += getConsecutiveSetScore(consecutive, blocks, forBlack == playersTurn);
-						consecutive = 0;
-						blocks = 1;
-					}
-					else {
-						blocks = 1;
-					}
-				}
-				else if(consecutive > 0) {
-					score += getConsecutiveSetScore(consecutive, blocks, forBlack == playersTurn);
-					consecutive = 0;
-					blocks = 2;
-				}
-				else {
-					blocks = 2;
-				}
-		        
+		        evaluateDirections(boardMatrix,i,k-i,forBlack,playersTurn,evaluations);
 		    }
-		    if(consecutive > 0) {
-				score += getConsecutiveSetScore(consecutive, blocks, forBlack == playersTurn);
-				
-			}
-			consecutive = 0;
-			blocks = 2;
+		    evaluateDirectionsAfterOnePass(evaluations,forBlack,playersTurn);
 		}
 		// From top-left to bottom-right diagonally
 		for (int k = 1-boardMatrix.length; k < boardMatrix.length; k++) {
 		    int iStart = Math.max(0, k);
 		    int iEnd = Math.min(boardMatrix.length + k - 1, boardMatrix.length-1);
 		    for (int i = iStart; i <= iEnd; ++i) {
-		        int j = i - k;
-		        
-		        if(boardMatrix[i][j] == (forBlack ? 2 : 1)) {
-					consecutive++;
-				}
-				else if(boardMatrix[i][j] == 0) {
-					if(consecutive > 0) {
-						blocks--;
-						score += getConsecutiveSetScore(consecutive, blocks, forBlack == playersTurn);
-						consecutive = 0;
-						blocks = 1;
-					}
-					else {
-						blocks = 1;
-					}
-				}
-				else if(consecutive > 0) {
-					score += getConsecutiveSetScore(consecutive, blocks, forBlack == playersTurn);
-					consecutive = 0;
-					blocks = 2;
-				}
-				else {
-					blocks = 2;
-				}
-		        
+				evaluateDirections(boardMatrix,i,i-k,forBlack,playersTurn,evaluations);
 		    }
-		    if(consecutive > 0) {
-				score += getConsecutiveSetScore(consecutive, blocks, forBlack == playersTurn);
-				
-			}
-			consecutive = 0;
-			blocks = 2;
+			evaluateDirectionsAfterOnePass(evaluations,forBlack,playersTurn);
 		}
-		return score;
+		return evaluations[2];
+	}
+	public static void evaluateDirections(int[][] boardMatrix, int i, int j, boolean isBot, boolean botsTurn, int[] eval) {
+		// Check if the selected player has a stone in the current cell
+		if (boardMatrix[i][j] == (isBot ? 2 : 1)) {
+			// Increment consecutive stones count
+			eval[0]++;
+		}
+		// Check if cell is empty
+		else if (boardMatrix[i][j] == 0) {
+			// Check if there were any consecutive stones before this empty cell
+			if (eval[0] > 0) {
+				// Consecutive set is not blocked by opponent, decrement block count
+				eval[1]--;
+				// Get consecutive set score
+				eval[2] += getConsecutiveSetScore(eval[0], eval[1], isBot == botsTurn);
+				// Reset consecutive stone count
+				eval[0] = 0;
+				// Current cell is empty, next consecutive set will have at most 1 blocked side.
+			}
+			// No consecutive stones.
+			// Current cell is empty, next consecutive set will have at most 1 blocked side.
+			eval[1] = 1;
+		}
+		// Cell is occupied by opponent
+		// Check if there were any consecutive stones before this empty cell
+		else if (eval[0] > 0) {
+			// Get consecutive set score
+			eval[2] += getConsecutiveSetScore(eval[0], eval[1], isBot == botsTurn);
+			// Reset consecutive stone count
+			eval[0] = 0;
+			// Current cell is occupied by opponent, next consecutive set may have 2 blocked sides
+			eval[1] = 2;
+		} else {
+			// Current cell is occupied by opponent, next consecutive set may have 2 blocked sides
+			eval[1] = 2;
+		}
+	}
+	private static void evaluateDirectionsAfterOnePass(int[] eval, boolean isBot, boolean playersTurn) {
+		// End of row, check if there were any consecutive stones before we reached right border
+		if (eval[0] > 0) {
+			eval[2] += getConsecutiveSetScore(eval[0], eval[1], isBot == playersTurn);
+		}
+		// Reset consecutive stone and blocks count
+		eval[0] = 0;
+		eval[1] = 2;
 	}
 
 	// This function returns the score of a given consecutive stone set.

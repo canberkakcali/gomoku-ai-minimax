@@ -27,6 +27,9 @@ public class Board {
 	public int getBoardSize() {
 		return boardMatrix.length;
 	}
+	public void removeStoneNoGUI(int posX, int posY){
+		boardMatrix[posY][posX] = 0;
+	}
 	public void addStoneNoGUI(int posX, int posY, boolean black) {
 		boardMatrix[posY][posX] = black ? 2 : 1;
 	}
